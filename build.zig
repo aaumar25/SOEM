@@ -335,6 +335,29 @@ pub fn build(b: *std.Build) !void {
             .exclude_extensions = &.{".in"},
         },
     );
+    switch (target.result.os.tag) {
+        .windows => {
+            soem.installHeader(
+                soem_dep.path("osal/win32/osal_defs.h"),
+                "soem/osal_defs.h",
+            );
+            soem.installHeader(
+                soem_dep.path("oshw/win32/nicdrv.h"),
+                "soem/nicdrv.h",
+            );
+        },
+        .linux => {
+            soem.installHeader(
+                soem_dep.path("osal/linux/osal_defs.h"),
+                "soem/osal_defs.h",
+            );
+            soem.installHeader(
+                soem_dep.path("oshw/linux/nicdrv.h"),
+                "soem/nicdrv.h",
+            );
+        },
+        else => return error.UnsupportedOs,
+    }
     soem.installConfigHeader(config);
     b.installArtifact(soem);
 }
