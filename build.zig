@@ -1,14 +1,21 @@
 const std = @import("std");
+const build_zig_zon = @import("build.zig.zon");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const gpa = std.heap.smp_allocator;
+    const gpa = b.allocator;
     const soem_dep = b.dependency("upstream", .{});
     // Default parameter
     const EC_MAXECATFRAME: i64 = 1518;
 
     // Options
+    // Install samples
+    const examples = b.option(
+        bool,
+        "examples",
+        "Install provided examples from upstream",
+    ) orelse false;
     // Configurable sizes
     const ec_bufsize = b.option(
         i64,
@@ -377,6 +384,27 @@ pub fn build(b: *std.Build) !void {
     }
     soem.installConfigHeader(config);
     b.installArtifact(soem);
+
+    if (examples) {
+        // Build slaveinfo binary
+        const slaveinfo_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
+        slaveinfo_mod.addCSourceFile(.{
+            .file = soem_dep.path("samples/slaveinfo/slaveinfo.c"),
+        });
+        slaveinfo_mod.linkLibrary(soem);
+        if (target.result.os.tag == .windows) {
+            slaveinfo_mod.addLibraryPath(b.named_lazy_paths.get("wpcap_lib_dir").?);
+        }
+        const slaveinfo_exe = b.addExecutable(.{
+            .name = "slaveinfo",
+            .root_module = slaveinfo_mod,
+        });
+        b.installArtifact(slaveinfo_exe);
+    }
 }
 
 /// Converts "AA:BB:CC:DD:EE:FF" to "{0xAABB, 0xCCDD, 0xEEFF}".
