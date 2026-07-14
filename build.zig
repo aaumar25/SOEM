@@ -290,11 +290,17 @@ pub fn build(b: *std.Build) !void {
             mod.addIncludePath(soem_dep.path("osal/win32"));
             mod.addIncludePath(soem_dep.path("oshw/win32"));
             mod.addIncludePath(soem_dep.path("oshw/win32/wpcap/Include"));
-            if (target.result.cpu.arch == .x86) {
-                mod.addLibraryPath(soem_dep.path("oshw/win32/wpcap/Lib"));
-            } else if (target.result.cpu.arch == .x86_64) {
-                mod.addLibraryPath(soem_dep.path("oshw/win32/wpcap/Lib/x64"));
-            } else return error.UnsupportedCpuArch;
+            const wpcap_lib_dir = soem_dep.path(switch (target.result.cpu.arch) {
+                .x86 => "oshw/win32/wpcap/Lib",
+                .x86_64 => "oshw/win32/wpcap/Lib/x64",
+                else => return error.UnsupportedCpuArch,
+            });
+            mod.addLibraryPath(wpcap_lib_dir);
+            // Only the `-l` flags below reach an executable that links this
+            // static library; a module's library paths and object files are
+            // emitted solely for the compilation that owns them. Executables
+            // must therefore add this directory to their own search path.
+            b.addNamedLazyPath("wpcap_lib_dir", wpcap_lib_dir);
             mod.linkSystemLibrary("Packet", .{
                 .needed = true,
                 .preferred_link_mode = .static,
@@ -317,8 +323,14 @@ pub fn build(b: *std.Build) !void {
             });
             mod.addIncludePath(soem_dep.path("osal/linux"));
             mod.addIncludePath(soem_dep.path("oshw/linux"));
-            mod.linkSystemLibrary("pthread", .{ .needed = true });
-            mod.linkSystemLibrary("rt", .{ .needed = true });
+            mod.linkSystemLibrary("pthread", .{
+                .needed = true,
+                .preferred_link_mode = .static,
+            });
+            mod.linkSystemLibrary("rt", .{
+                .needed = true,
+                .preferred_link_mode = .static,
+            });
         },
         else => return error.UnsupportedOs,
     }
@@ -344,6 +356,11 @@ pub fn build(b: *std.Build) !void {
             soem.installHeader(
                 soem_dep.path("oshw/win32/nicdrv.h"),
                 "soem/nicdrv.h",
+            );
+            soem.installHeadersDirectory(
+                soem_dep.path("oshw/win32/wpcap/Include"),
+                "",
+                .{},
             );
         },
         .linux => {
