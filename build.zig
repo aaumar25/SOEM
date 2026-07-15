@@ -1,4 +1,5 @@
 const std = @import("std");
+
 const build_zig_zon = @import("build.zig.zon");
 
 pub fn build(b: *std.Build) !void {
@@ -316,8 +317,14 @@ pub fn build(b: *std.Build) !void {
                 .needed = true,
                 .preferred_link_mode = .static,
             });
-            mod.linkSystemLibrary("ws2_32", .{});
-            mod.linkSystemLibrary("winmm", .{});
+            mod.linkSystemLibrary("ws2_32", .{
+                .needed = true,
+                .preferred_link_mode = .static,
+            });
+            mod.linkSystemLibrary("winmm", .{
+                .needed = true,
+                .preferred_link_mode = .static,
+            });
         },
         .linux => {
             mod.addCSourceFile(.{ .file = soem_dep.path("osal/linux/osal.c") });
